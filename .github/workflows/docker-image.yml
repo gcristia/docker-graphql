@@ -1,8 +1,8 @@
 name: Docker Image CI
 
 on:
-  push:
-    branches: [ "main" ]
+  #  push:
+  #    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
@@ -18,14 +18,35 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Git Semantic Version
+        uses: PaulHatch/semantic-version@v4.0.3
+        with:
+          major_pattern: "major:"
+          minor_pattern: "feat:"
+          format: "${major}.${minor}.${patch}-prerelease${increment}"
+        id: version
+
       - name: Docker Login
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USER }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
-          echo "Init Login"
           docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-          echo "Finish Login"
+
+      - name: Build the Docker image
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          docker build -t ghccristia/docker-graphql:$NEW_VERSION .
+          docker build -t ghccristia/docker-graphql:latest .
+
+      - name: Push the Docker image
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          docker push ghccristia/docker-graphql:$NEW_VERSION
+          docker push ghccristia/docker-graphql:latest
+
 
 #    - name: Build the Docker image
 #      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
